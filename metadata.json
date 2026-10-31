@@ -1,0 +1,8 @@
+{
+  "name": "Iconocracia — Constelação & Glossário da Cultura Jurídica",
+  "description": "Plataforma de navegação em Constelação 3D, Palco e Grade e Glossário Interativo para a tese 'Iconocracia: Alegoria Feminina na História da Cultura Jurídica (séculos XIX–XX)', com montagem autoral Zwischenraum e leitura com tooltip iconológico.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

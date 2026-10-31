@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-serif: "Source Serif 4", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --color-paper: #FBF9F5;
+  --color-paper-warm: #F3EFE6;
+  --color-ink: #1C1917;
+  --color-mnemosyne: #0C0B0A;
+  --color-terracotta: #9A3412;
+  --color-bronze: #78350F;
+  --color-lapis: #1E3A8A;
+}
+
+body {
+  background-color: #FBF9F5;
+  color: #1C1917;
+  font-family: var(--font-sans);
+}
+
+/* Custom selection styling for Peek-a-Concept Tooltip */
+::selection {
+  background-color: #9A3412;
+  color: #FBF9F5;
+}
+::-moz-selection {
+  background-color: #9A3412;
+  color: #FBF9F5;
+}
+
+/* Subtle custom scrollbars for archival panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 113, 108, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 113, 108, 0.5);
+}

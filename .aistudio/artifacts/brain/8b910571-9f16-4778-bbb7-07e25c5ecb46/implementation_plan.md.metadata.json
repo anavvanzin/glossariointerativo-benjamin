@@ -1,0 +1,6 @@
+{
+  "summary":  "Plano de implementacao para o Glossario e Constelacao 3D da tese Iconocracia: Alegoria Feminina na Historia da Cultura Juridica (seculos XIX-XX), integrando o campo relacional em Three.js (Constelacao, Palco e Grade), os verbetes canonicos do Glossario (Autoral, Mobilizado, Operacional, Alegoria, Interlocutor), a montagem autoral Zwischenraum e o tooltip interativo com geracao de explicacao e gravura alegorica via Gemini no servidor.",
+  "updatedAt":  "2026-10-27T05:47:38.397283797Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
