@@ -4,7 +4,20 @@ import {
   ConstellationNodeItem,
   generateArchivalEngravingSvg,
 } from '../data/iconocracyData';
-import { BookOpen, Sparkles, X } from 'lucide-react';
+import {
+  BookOpen,
+  CheckCircle2,
+  ExternalLink,
+  HardDrive,
+  Loader2,
+  Sparkles,
+  X,
+} from 'lucide-react';
+import {
+  exportPeekNoteToDrive,
+  getAccessToken,
+  googleSignIn,
+} from '../services/googleDriveService';
 
 interface SelectionPeekTooltipProps {
   allNodes: ConstellationNodeItem[];
@@ -30,8 +43,43 @@ export const SelectionPeekTooltip: React.FC<SelectionPeekTooltipProps> = ({
   const [matchedNode, setMatchedNode] = useState<ConstellationNodeItem | null>(
     null
   );
+  const [isSavingToDrive, setIsSavingToDrive] = useState(false);
+  const [savedDocUrl, setSavedDocUrl] = useState<string | null>(null);
+  const [driveError, setDriveError] = useState<string | null>(null);
   const statusRef = useRef(status);
   statusRef.current = status;
+
+  const handleSaveToDrive = async () => {
+    if (!result || !selectedText) return;
+    setIsSavingToDrive(true);
+    setDriveError(null);
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        const loginRes = await googleSignIn();
+        token = loginRes?.accessToken || null;
+      }
+      if (!token) {
+        throw new Error('Falha na autenticação do Google.');
+      }
+
+      const fileItem = await exportPeekNoteToDrive({
+        token,
+        term: selectedText,
+        explanation: result.explanation,
+        epistemicStatus: result.epistemicStatus,
+        provenanceNote: result.provenanceNote,
+        abntRef: result.abntRef,
+      });
+
+      setSavedDocUrl(fileItem.webViewLink || '#');
+    } catch (err: any) {
+      console.error('Erro ao salvar nota no Drive:', err);
+      setDriveError(err.message || 'Erro ao salvar no Drive');
+    } finally {
+      setIsSavingToDrive(false);
+    }
+  };
 
   useEffect(() => {
     let debounceTimer: ReturnType<typeof setTimeout>;
@@ -210,18 +258,58 @@ export const SelectionPeekTooltip: React.FC<SelectionPeekTooltipProps> = ({
                 />
               </div>
 
-              {matchedNode && (
-                <button
-                  onClick={() => {
-                    onOpenNodeFicha(matchedNode);
-                    setStatus('IDLE');
-                  }}
-                  className="w-full py-1.5 bg-[#9A3412] hover:bg-[#7C2D12] text-white text-xs font-mono flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  Abrir Ficha Canônica: {matchedNode.title}
-                </button>
-              )}
+              {/* Actions: Open canonical ficha and/or save to Google Drive */}
+              <div className="space-y-2 pt-1">
+                {matchedNode && (
+                  <button
+                    onClick={() => {
+                      onOpenNodeFicha(matchedNode);
+                      setStatus('IDLE');
+                    }}
+                    className="w-full py-1.5 bg-[#9A3412] hover:bg-[#7C2D12] text-white text-xs font-mono flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Abrir Ficha Canônica: {matchedNode.title}
+                  </button>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSaveToDrive}
+                    disabled={isSavingToDrive}
+                    className="flex-1 py-1.5 bg-[#292524] hover:bg-[#38332E] text-[#FBF9F5] border border-[#57534E] text-xs font-mono flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    {isSavingToDrive ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#9A8A2A]" />
+                        Salvando Nota no Drive...
+                      </>
+                    ) : (
+                      <>
+                        <HardDrive className="w-3.5 h-3.5 text-[#9A8A2A]" />
+                        Salvar Nota no Google Drive
+                      </>
+                    )}
+                  </button>
+
+                  {savedDocUrl && (
+                    <a
+                      href={savedDocUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1.5 bg-[#184D18] hover:bg-[#2A7A2A] text-white text-xs font-mono flex items-center gap-1"
+                      title="Abrir nota salva no Google Docs"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Doc <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+
+                {driveError && (
+                  <p className="text-[10px] font-mono text-[#F87171]">{driveError}</p>
+                )}
+              </div>
             </div>
           )
         )}

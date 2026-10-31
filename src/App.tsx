@@ -16,6 +16,14 @@ import {
 import { FichaDrawerModal } from './components/FichaDrawerModal';
 import { ZwischenraumMontageModal } from './components/ZwischenraumMontageModal';
 import { SelectionPeekTooltip } from './components/SelectionPeekTooltip';
+import { DriveIntegrationPanel } from './components/DriveIntegrationPanel';
+import { User } from 'firebase/auth';
+import {
+  initAuth,
+  googleSignIn,
+  googleSignOut,
+  getAccessToken,
+} from './services/googleDriveService';
 import {
   AlertTriangle,
   ArrowRight,
@@ -24,6 +32,7 @@ import {
   ExternalLink,
   Eye,
   FileText,
+  HardDrive,
   Layers,
   Scale,
   Search,
@@ -35,7 +44,8 @@ type MainSectionTab =
   | 'glossario'
   | 'regimes'
   | 'metodo'
-  | 'referencias';
+  | 'referencias'
+  | 'drive';
 
 export default function App() {
   // Parse initial URL parameters per constellation-method.md ("Links diretos continuam utilizáveis e modos explicitamente escolhidos na URL são respeitados")
@@ -46,12 +56,34 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<MainSectionTab>(() => {
     const t = initialParams.get('tab') as MainSectionTab;
-    return ['acervo', 'glossario', 'regimes', 'metodo', 'referencias'].includes(
-      t
-    )
+    return [
+      'acervo',
+      'glossario',
+      'regimes',
+      'metodo',
+      'referencias',
+      'drive',
+    ].includes(t)
       ? t
       : 'acervo';
   });
+
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (user, token) => {
+        setCurrentUser(user);
+        setAccessToken(token);
+      },
+      () => {
+        setCurrentUser(null);
+        setAccessToken(null);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
 
   const [viewMode, setViewMode] = useState<AcervoViewMode>(() => {
     const m = initialParams.get('mode') as AcervoViewMode;
@@ -221,10 +253,37 @@ export default function App() {
           >
             Referências ABNT
           </button>
+          <button
+            onClick={() => setActiveTab('drive')}
+            className={`transition-colors whitespace-nowrap shrink-0 py-1 border-b ${
+              activeTab === 'drive'
+                ? 'text-white border-[#9A3412]'
+                : 'text-[#A8A29E] border-transparent hover:text-white'
+            }`}
+          >
+            Google Drive
+          </button>
         </nav>
 
-        {/* Zone 3: 1 Primary Action */}
+        {/* Zone 3: 1 Primary Action + Drive indicator */}
         <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setActiveTab('drive')}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono border border-[#38332E] bg-[#1C1917] text-[#D6CEBE] hover:text-white hover:border-[#D6CEBE] transition-colors"
+            title={
+              currentUser
+                ? `Conectado como ${currentUser.email}`
+                : 'Conectar ao Google Drive'
+            }
+          >
+            <HardDrive
+              className={`w-3.5 h-3.5 ${
+                currentUser ? 'text-[#2A7A2A]' : 'text-[#9A8A2A]'
+              }`}
+            />
+            <span>{currentUser ? 'Drive Conectado' : 'Google Drive'}</span>
+          </button>
+
           <button
             onClick={() => setIsMontageOpen(true)}
             className="px-4 py-2 text-xs font-mono bg-[#9A3412] text-[#FBF9F5] hover:bg-[#7C2D12] transition-colors whitespace-nowrap shrink-0"
@@ -243,6 +302,7 @@ export default function App() {
             ['regimes', 'Regimes & 10 Ind.'],
             ['metodo', 'Método Benjamin'],
             ['referencias', 'ABNT'],
+            ['drive', 'Google Drive'],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -1095,6 +1155,18 @@ export default function App() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* TAB 6: /DRIVE — GOOGLE WORKSPACE DRIVE INTEGRATION */}
+        {activeTab === 'drive' && (
+          <DriveIntegrationPanel
+            currentUser={currentUser}
+            accessToken={accessToken}
+            onAuthChange={(user, token) => {
+              setCurrentUser(user);
+              setAccessToken(token);
+            }}
+          />
         )}
 
         {/* FICHA DOSSIER OVERLAY (Opens over the Constellation or Glossary; closing returns focus to the field) */}

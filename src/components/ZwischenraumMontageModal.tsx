@@ -10,12 +10,19 @@ import {
   BookOpen,
   Compass,
   ExternalLink,
+  HardDrive,
+  CheckCircle2,
   Loader2,
   Plus,
   Sparkles,
   Trash2,
   X,
 } from 'lucide-react';
+import {
+  exportMontageToDrive,
+  getAccessToken,
+  googleSignIn,
+} from '../services/googleDriveService';
 
 interface ZwischenraumMontageModalProps {
   isOpen: boolean;
@@ -54,6 +61,48 @@ export const ZwischenraumMontageModal: React.FC<
   const [isGenerating, setIsGenerating] = useState(false);
   const [report, setReport] = useState<ZwischenraumReport | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Google Drive export state
+  const [isExportingDrive, setIsExportingDrive] = useState(false);
+  const [driveExportSuccess, setDriveExportSuccess] = useState<{
+    docUrl?: string;
+    name: string;
+  } | null>(null);
+  const [driveExportError, setDriveExportError] = useState<string | null>(null);
+
+  const handleExportToDrive = async (asGoogleDoc = true) => {
+    if (!report) return;
+    setIsExportingDrive(true);
+    setDriveExportError(null);
+    setDriveExportSuccess(null);
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        const signResult = await googleSignIn();
+        if (!signResult?.accessToken) {
+          throw new Error('Conecte sua conta do Google para salvar no Drive.');
+        }
+        token = signResult.accessToken;
+      }
+
+      const file = await exportMontageToDrive({
+        token,
+        question: researchQuestion,
+        report,
+        selectedItems,
+        asGoogleDoc,
+      });
+
+      setDriveExportSuccess({
+        docUrl: file.webViewLink,
+        name: file.name,
+      });
+    } catch (err: any) {
+      setDriveExportError(err.message || 'Falha ao salvar no Google Drive.');
+    } finally {
+      setIsExportingDrive(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -283,14 +332,72 @@ export const ZwischenraumMontageModal: React.FC<
           {/* 5-Section Academic Deliverable Output */}
           {report && (
             <div className="border border-[#1C1917] bg-[#FBF9F5] p-6 sm:p-8 space-y-6">
-              <div className="border-b border-[#D6CEBE] pb-4">
-                <p className="text-xs font-mono uppercase tracking-widest text-[#9A3412]">
-                  Entregável Acadêmico · DEC-2026-07-29-APARATO-MINIMO
-                </p>
-                <h3 className="font-display text-2xl font-semibold text-[#1C1917] mt-1">
-                  Leitura Indiciária do Intervalo (Zwischenraum)
-                </h3>
+              <div className="border-b border-[#D6CEBE] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-mono uppercase tracking-widest text-[#9A3412]">
+                    Entregável Acadêmico · DEC-2026-07-29-APARATO-MINIMO
+                  </p>
+                  <h3 className="font-display text-2xl font-semibold text-[#1C1917] mt-1">
+                    Leitura Indiciária do Intervalo (Zwischenraum)
+                  </h3>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => handleExportToDrive(true)}
+                    disabled={isExportingDrive}
+                    className="px-3.5 py-2 bg-[#1C1917] text-white hover:bg-[#292524] text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {isExportingDrive ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Salvando no Drive...
+                      </>
+                    ) : (
+                      <>
+                        <HardDrive className="w-3.5 h-3.5 text-[#9A8A2A]" />
+                        Salvar Google Doc no Drive
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleExportToDrive(false)}
+                    disabled={isExportingDrive}
+                    className="px-3 py-2 border border-[#D6CEBE] text-xs font-mono hover:bg-[#F3EFE6] whitespace-nowrap"
+                    title="Exportar como arquivo Markdown (.md)"
+                  >
+                    Salvar .MD
+                  </button>
+                </div>
               </div>
+
+              {/* Drive Export Success Banner */}
+              {driveExportSuccess && (
+                <div className="p-3.5 bg-[#D8ECD8] border border-[#2A7A2A] text-xs font-mono text-[#184D18] flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>
+                      Relatório salvo em <strong>01_Montagens_Zwischenraum/{driveExportSuccess.name}</strong>!
+                    </span>
+                  </div>
+                  {driveExportSuccess.docUrl && (
+                    <a
+                      href={driveExportSuccess.docUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline font-semibold flex items-center gap-1"
+                    >
+                      Abrir no Google Docs <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {driveExportError && (
+                <div className="p-3 bg-[#F9E0E0] border border-[#9A3412] text-xs font-mono text-[#6E3209]">
+                  {driveExportError}
+                </div>
+              )}
 
               {report.rawMarkdown ? (
                 <div className="font-serif text-sm text-[#1C1917] whitespace-pre-wrap leading-relaxed">

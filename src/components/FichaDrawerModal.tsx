@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ABNT_REFERENCES,
   ConstellationNodeItem,
@@ -8,13 +8,22 @@ import {
 import {
   ArrowUpRight,
   BookOpen,
+  CheckCircle2,
+  ExternalLink,
   Eye,
   GitCommit,
+  HardDrive,
   Layers,
+  Loader2,
   AlertTriangle,
   X,
 } from 'lucide-react';
 import { AcervoViewMode } from './ConstellationViewport3D';
+import {
+  exportFichaToDrive,
+  getAccessToken,
+  googleSignIn,
+} from '../services/googleDriveService';
 
 interface FichaDrawerModalProps {
   node: ConstellationNodeItem | null;
@@ -60,6 +69,49 @@ export const FichaDrawerModal: React.FC<FichaDrawerModalProps> = ({
     `${node.categoryLabel} · ${node.regime}`,
     node.archetype
   );
+
+  const [isExportingDrive, setIsExportingDrive] = useState(false);
+  const [driveExportSuccess, setDriveExportSuccess] = useState<{
+    name: string;
+    docUrl?: string;
+  } | null>(null);
+  const [driveExportError, setDriveExportError] = useState<string | null>(null);
+
+  const handleExportToDrive = async (asGoogleDoc = true) => {
+    setIsExportingDrive(true);
+    setDriveExportError(null);
+    setDriveExportSuccess(null);
+
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        const loginRes = await googleSignIn();
+        token = loginRes?.accessToken || null;
+      }
+
+      if (!token) {
+        throw new Error('Não foi possível obter autenticação com o Google.');
+      }
+
+      const fileItem = await exportFichaToDrive({
+        token,
+        node,
+        asGoogleDoc,
+      });
+
+      setDriveExportSuccess({
+        name: fileItem.name,
+        docUrl: fileItem.webViewLink,
+      });
+    } catch (err: any) {
+      console.error('Erro ao exportar ficha para o Google Drive:', err);
+      setDriveExportError(
+        err.message || 'Falha ao salvar ficha no Google Drive.'
+      );
+    } finally {
+      setIsExportingDrive(false);
+    }
+  };
 
   return (
     <aside
@@ -112,24 +164,75 @@ export const FichaDrawerModal: React.FC<FichaDrawerModalProps> = ({
             </p>
           )}
 
-          {/* Action Bar: Add to Zwischenraum Montage */}
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          {/* Action Bar: Add to Zwischenraum Montage & Google Drive Sync */}
+          <div className="mt-4 flex flex-wrap items-center gap-2.5">
             <button
               onClick={() => onToggleMontageItem(node.id)}
-              className={`px-3.5 py-1.5 text-xs font-mono border transition-colors whitespace-nowrap ${
+              className={`px-3 py-1.5 text-xs font-mono border transition-colors whitespace-nowrap ${
                 isInMontage
                   ? 'bg-[#9A3412] text-[#FBF9F5] border-[#9A3412]'
                   : 'bg-[#1C1917] text-[#FBF9F5] border-[#1C1917] hover:bg-[#292524]'
               }`}
             >
               {isInMontage
-                ? '✓ Fixado na Montagem Zwischenraum'
-                : '+ Fixar na Montagem Zwischenraum'}
+                ? '✓ Na Montagem Zwischenraum'
+                : '+ Montagem Zwischenraum'}
             </button>
-            <span className="text-xs font-serif italic text-[#57534E]">
-              Selecione qualquer trecho de texto abaixo para gerar nota + gravura IA.
-            </span>
+
+            <button
+              onClick={() => handleExportToDrive(true)}
+              disabled={isExportingDrive}
+              className="px-3 py-1.5 text-xs font-mono border border-[#D6CEBE] bg-[#F3EFE6] hover:bg-[#E5DEC9] text-[#1C1917] transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+              title="Salva a ficha completa formatada como Google Doc em 02_Fichas_e_Dossies"
+            >
+              {isExportingDrive ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#9A3412]" />
+                  Salvando no Drive...
+                </>
+              ) : (
+                <>
+                  <HardDrive className="w-3.5 h-3.5 text-[#9A3412]" />
+                  Salvar Doc no Drive
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => handleExportToDrive(false)}
+              disabled={isExportingDrive}
+              className="px-2.5 py-1.5 text-xs font-mono border border-[#D6CEBE] bg-white hover:bg-[#F3EFE6] text-[#57534E] transition-colors whitespace-nowrap disabled:opacity-50"
+              title="Salva a ficha como Markdown (.md)"
+            >
+              .MD
+            </button>
           </div>
+
+          {/* Drive Feedback Banners */}
+          {driveExportSuccess && (
+            <div className="mt-3 p-3 bg-[#D8ECD8] border border-[#2A7A2A] text-xs font-mono text-[#184D18] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>Salvo em 02_Fichas_e_Dossies!</span>
+              </div>
+              {driveExportSuccess.docUrl && (
+                <a
+                  href={driveExportSuccess.docUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-semibold flex items-center gap-1"
+                >
+                  Abrir no Google Docs <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          )}
+
+          {driveExportError && (
+            <div className="mt-3 p-3 bg-[#F9E0E0] border border-[#9A3412] text-xs font-mono text-[#6E3209]">
+              {driveExportError}
+            </div>
+          )}
         </div>
 
         {/* #verificar Audit Flag if present */}

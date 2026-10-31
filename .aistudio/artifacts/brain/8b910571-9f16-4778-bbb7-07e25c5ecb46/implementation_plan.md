@@ -1,135 +1,131 @@
-# Iconocracia — Constelação 3D & Glossário Interativo da Tese
+# Integração do Google Drive — Plataforma Iconocracia
 
-Uma plataforma de navegação conceitual e visual para a tese *"Iconocracia: Alegoria Feminina na História da Cultura Jurídica (séculos XIX–XX)"* (Ana Vanzin), articulando a **Constelação 3D** como entrada principal do acervo (em diálogo com Walter Benjamin, Sigrid Weigel e o *Bilderatlas Mnemosyne* de Aby Warburg) com o **Glossário Canônico** e um **Tooltip Interativo de Leitura** que gera instantaneamente notas iconológicas e gravuras contextuais ao selecionar qualquer termo ou passagem.
+Plano de arquitetura e integração da API do Google Drive na aplicação *"Iconocracia: Alegoria Feminina na História da Cultura Jurídica (séculos XIX–XX)"*, permitindo sincronização completa de relatórios Zwischenraum, fichas conceituais, notas iconológicas com gravuras e catálogo documental em uma pasta estruturada no Google Drive da pesquisadora.
 
 ---
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> As decisões abaixo consolidam suas respostas na etapa de alinhamento e estabelecem as regras metodológicas inegociáveis da tese (`DEC-2026-07-29-APARATO-MINIMO` e `Glossario.md`).
+> As decisões abaixo refletem as escolhas confirmadas na etapa de alinhamento e as diretrizes obrigatórias de segurança e OAuth da plataforma.
 
-- **Decisão Confirmada 1 — Experiência Principal (`Constelação 3D + Glossário Interativo`)**: A entrada principal apresenta a **Constelação** (com alternância imediata para **Palco** e **Grade**, conforme `constellation-method.md`) articulada ao **Glossário Completo** da tese (Conceitos Autorais, Mobilizados, Operacionais, Alegorias Nacionais, Léxico Warburguiano, Interlocutores e Referências ABNT NBR 6023:2025).
-- **Decisão Confirmada 2 — Navegação Espacial (`Three.js: Constelação, Palco e Grade`)**: O campo tridimensional distribui os nós de conceitos e obras do corpus por regra estável ligada ao ID, sem hierarquizar relevância científica por tamanho ou moldura, permitindo abrir a ficha documental sobre o campo e retornar o foco ao objeto ao fechá-la, além de compor painéis comparativos (*Zwischenraum*).
-- **Decisão Confirmada 3 — Inteligência Artificial (`Tooltip Visual ao Selecionar Texto`)**: Selecionar qualquer palavra, expressão ou passagem nos verbetes do Glossário, nas fichas ou nos textos metodológicos aciona um tooltip flutuante que consulta o servidor Gemini (`/api/generate-image` e `/api/explain-term`) para produzir uma síntese rigorosa no vocabulário estável da tese acompanhada de uma gravura/ilustração alegórica gerada sob demanda.
-- **Decisão Confirmada 4 — Escopo Estrito em História do Direito e Iconocracia**: Foco 100% dedicado à tese *Iconocracia* (janela 1800–2000, suportes forenses/estatais, separação explícita entre *corpus core* e *comparador/apêndice*, vedação absoluta a métricas psicométricas de análise de conteúdo ou uso do termo proibido "ciberfeminismo").
+- **Decisão Confirmada 1 — Escopo da Integração**: Sincronização completa de relatórios, notas e arquivos de pesquisa.
+- **Decisão Confirmada 2 — Organização no Google Drive**: Criação e manutenção de uma pasta dedicada na raiz do Drive do usuário intitulada `Iconocracia - Pesquisa de Tese (Ana Vanzin)`, com subpastas setoriais (`01_Montagens_Zwischenraum/`, `02_Fichas_e_Dossies/`, `03_Notas_Iconologicas_Peek/` e `04_Catalogo_e_Bibliografia/`), contendo arquivos em formato Google Docs nativo e Markdown acadêmico.
+- **Decisão Confirmada 3 — Autenticação e Token (Least Privilege & Segurança)**:
+  - Autenticação cliente via Firebase Auth (`signInWithPopup` com `GoogleAuthProvider`) utilizando as credenciais já provisionadas em `firebase-applet-config.json`.
+  - Cache do token OAuth estritamente em memória (nunca em `localStorage` ou `sessionStorage`), com limpeza no logout.
+  - Botão oficial padronizado *"Sign in with Google"* no cabeçalho e na gaveta do Drive.
+- **Decisão Confirmada 4 — Proteção Obrigatória contra Operações Destrutivas**: Toda ação de exclusão, substituição ou movimentação de arquivos no Drive exige modal de confirmação explícito com detalhes dos itens afetados.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **O que a aplicação faz**:
-  1. **Entrada Principal `/acervo` em Constelação 3D (Three.js)**: Um espaço tridimensional inspirado nos painéis negros do *Bilderatlas Mnemosyne* e na *Idee als Konfiguration* de Walter Benjamin, onde cada estrela/nó materializa um verbete do Glossário ou um objeto exemplar do corpus (moeda, selo, monumento, arquitetura forense, estampa, frontispício, papel-moeda, cartaz).
-  2. **Três Modos de Inspeção (`Constelação` · `Palco` · `Grade`)**:
-     - **Constelação** (primeiro botão e padrão): Grafo espacial 3D onde conexões genealógicas e operacionais (ex.: *Purificação Clássica* → *Endurecimento* e *Contrato Sexual Visual*; matrizes de Kantorowicz, Legendre, Hespanha e extensão ferramental Latour, Haraway, Descola) são visíveis como fios luminosos discretos.
-     - **Palco**: Inspeção em câmera aproximada do artefato ou conceito selecionado em modelo procedural 3D composto (3–12 partes em `THREE.Group`: ex. balança/espada/venda de *Justitia*, moeda/medalha republicana cunhada em relevo, coluna/frontão forense, estela monumental) com iluminação PBR de estúdio e os **10 indicadores de endurecimento (escala ordinal 0–3, sem soma)**.
-     - **Grade**: Catálogo documentado de leitura comparativa e filtragem por categoria epistêmica (`Autoral`, `Mobilizado`, `Operacional`, `Alegoria`, `Interlocutor`), regime iconocrático (`FUNDACIONAL`, `NORMATIVO`, `MILITAR`, `CONTRA-ALEGORIA`) e país (`FR`, `UK`, `DE`, `US`, `BE`, `BR`, mais nota para `AT`, `NL`, `DK`, `ES`).
-  3. **Montagem Autoral (*Zwischenraum Panel*)**: Permite selecionar dois ou mais nós/obras da Constelação para abrir uma prancha comparativa lado a lado, explicitando a pergunta de pesquisa, o suporte material, a função jurídico-política, a distinção entre sentido *produzido* pelo dispositivo estatal e sentido *recebido*, e os silêncios do corpus.
-  4. **Leitura Interativa com Tooltip Gerador (Explicação + Gravura)**: Ao selecionar qualquer trecho de texto em qualquer verbete ou documento, um tooltip editorial flutuante apresenta instantaneamente uma nota analítica fundamentada no glossário da tese e uma imagem em estilo calcográfico/gravura histórica gerada via Gemini no servidor.
+- **O que faz**:
+  Permite que a pesquisadora conecte sua conta Google para sincronizar, arquivar e consultar diretamente no Google Drive todos os produtos intelectuais gerados na plataforma:
+  1. **Exportação de Montagens Zwischenraum**: Salva relatórios analíticos comparativos (estruturados nas 5 seções acadêmicas: *Problema, Argumento, Evidências, Lacunas, Próximos passos*) diretamente como Google Docs editáveis ou arquivos Markdown.
+  2. **Arquivamento de Fichas e Dossiês**: Exporta a ficha catalográfica e conceitual de qualquer obra ou operador do Glossário (com proveniência, regra de autoria e o perfil indiciário dos 10 indicadores de endurecimento).
+  3. **Preservação de Notas Iconológicas (*Peek-a-Concept*)**: Salva excertos selecionados, comentários da IA e gravuras calcográficas geradas.
+  4. **Navegador e Gestor de Arquivos do Drive da Tese**: Aba e painel modal para visualizar arquivos salvos, abrir diretamente no Google Docs/Drive em nova aba, carregar novos arquivos de pesquisa e monitorar a sincronização.
+- **Público-alvo**: A pesquisadora e historiadores do direito trabalhando na tese de doutorado, assegurando persistência e interoperabilidade de dados entre a plataforma e o ecossistema Google Workspace.
+- **Valor Principal**: Transforma a exploração visual e analítica (Constelação, Palco, Grade e Zwischenraum) em documentos de trabalho acadêmico prontos para redação, compartilhamento com orientadores e arquivo perene no Google Drive.
 
 ---
 
 ## 2. User Experience & Visual Design
 
-- **Fluxos Principais do Usuário**:
-  1. **Abertura na Constelação (`/acervo`)**: O usuário ingressa diretamente no campo relacional 3D (ou aciona o CTA principal da apresentação editorial). O dock inferior retrátil oferece busca instantânea, filtros de estatuto epistêmico e alternância suave (`Constelação` | `Palco` | `Grade`).
-  2. **Inspeção de Ficha e Retorno de Foco**: Clicar em um nó 3D desliza suavemente a câmera amortecida até o objeto e abre a ficha lateral/sobreposta com: selo de categoria (`Autoral`, `Mobilizado`, `Operacional`, `Alegoria`, `Interlocutor`), definição completa, caixa de proveniência/autoria (preservando a regra não-negociável dos 4 conceitos autorais), inventário verbal dos 10 indicadores de endurecimento (0–3) e citações ABNT NBR 6023:2025 (`@chave`). Fechar a ficha devolve o foco exatamente à obra no campo.
-  3. **Destaque de Texto (Peek-a-Concept Tooltip)**: No modo Glossário Editorial ou dentro de qualquer ficha/dossiê (incluindo o texto integral de *Constelação como entrada principal do acervo* e o aviso de verificação do código Iconclass `48C51` vs `44` e `11M44`), selecionar qualquer palavra ou frase dispara o tooltip flutuante com loader gráfico e retorna a nota conceitual + gravura gerada.
-  4. **Montagem *Zwischenraum***: O usuário fixa até 3 itens na barra de montagem para inspecionar o intervalo (*Zwischenraum*) entre imagens e conceitos, registrando a pergunta comparativa e exportando a ficha em formato acadêmico (Problema / Argumento / Evidências / Lacunas / Próximos passos).
+### Fluxos Principais do Usuário
 
-- **Identidade Visual & Tema (Museu / Arquivo Editorial & Espaço Mnemosyne)**:
-  - *Direção Estética*: Dupla camada — os painéis do **Atlas/Constelação 3D** evocam o tecido negro profundo das pranchas de Aby Warburg (`#0C0B0A`), enquanto o **Glossário e Fichas Documentais** seguem o padrão *Archival Warm Paper* (`#FBF9F5` / `#F5F1E8`) com texto carvão antigo (`#1C1917`) e divisórias fio-de-cabelo (`1px solid #E5DEC9`).
-  - *Paleta dos Regimes Iconocráticos (conforme `Glossario.md`)*:
-    - **FUNDACIONAL** (sacrificial · corpo vivo): Terracota suave (`#F9E0E0` / acento `#B5651D`)
-    - **NORMATIVO** (domesticado · burocrático): Pergaminho dourado (`#F5F0D0` / acento `#9A8A2A`)
-    - **MILITAR** (endurecido · imperial): Ardósia férrea (`#D8D8E8` / acento `#444466`)
-    - **CONTRA-ALEGORIA** (contestado · subversão): Verde musgo documental (`#D8ECD8` / acento `#2A7A2A`)
-  - *Tipografia (Regra 2+1)*:
-    - **Display / Títulos**: `Cormorant Garamond` (serifa editorial de alto contraste para cabeçalhos de verbetes, pranchas e títulos).
-    - **Prosa / Leitura Longa**: `Source Serif 4` e `Plus Jakarta Sans` (medida de 65–75 caracteres por linha, entrelinha 1.75).
-    - **Metadados, Códigos Iconclass & Indicadores Ordinais (0–3)**: `JetBrains Mono` com `tabular-nums`.
-  - *Disciplina Anti-Slop e Top Bar Contract*:
-    - Barra superior estrita em 3 zonas (`Iconocracia` wordmark — links de navegação em linha única: `Constelação`, `Glossário`, `Regimes & Endurecimento`, `Método Benjamin-Weigel`, `Referências ABNT` — 1 ação primária: `Nova Montagem`).
-    - Zero pílulas estáticas em metadados (uso de separadores tipográficos `·` e `/`) e controle inferior retrátil no viewport 3D sem `backdrop-filter` sobre o canvas WebGL ativo.
+1. **Conexão e Autenticação com o Google**:
+   - No topo da aplicação (ou dentro da nova aba/modal *Google Drive*), um indicador discreto exibe o estado de conexão: se desconectado, apresenta o botão oficial *"Sign in with Google"*; se conectado, exibe o avatar e e-mail do usuário com botão de desconexão.
+2. **Exportar Relatório Zwischenraum para o Google Drive**:
+   - No painel da montagem comparativa, após gerar o parecer em 5 seções, um botão primário *"Salvar no Google Drive"* permite escolher salvar como **Google Doc** ou **Arquivo Markdown**.
+   - A aplicação localiza ou cria a pasta `Iconocracia - Pesquisa de Tese (Ana Vanzin)/01_Montagens_Zwischenraum/`, envia o arquivo formatado e exibe confirmação com link direto para abrir no Google Docs.
+3. **Exportar Ficha Conceitual da Gaveta Lateral**:
+   - Na *Ficha do Verbete/Obra*, um novo botão de ação *"Exportar Ficha para o Drive"* gera o dossiê documentado em `02_Fichas_e_Dossies/`.
+4. **Navegador Dedicado de Arquivos do Drive**:
+   - Uma visão integrada lista os arquivos da pasta de pesquisa com metadados (nome, data de modificação, tamanho, tipo de documento), busca interna e opções para abrir no Drive, fazer download ou excluir (com confirmação prévia).
+
+### Identidade Visual & Diretrizes de Design
+
+- **Alinhamento com o Estilo Editorial e de Museu**:
+  - Superfícies em papel acolhedor (`#FBF9F5` e `#F3EFE6`), tipografia com serifa editorial `Cormorant Garamond` para títulos e `Source Serif 4` para prosa, combinadas com `Plus Jakarta Sans` para botões funcionais e `JetBrains Mono` para metadados e identificadores.
+  - Botão oficial *"Sign in with Google"* estilizado segundo as diretrizes de identidade do Google (Material Design), respeitando as cores e o ícone SVG de quatro cores.
+  - Zero pílulas estáticas em metadados: listagens de arquivos utilizam texto limpo com separadores tipográficos (`·`).
 
 ---
 
 ## 3. Key Product Decisions & Trade-Offs
 
-- **Decisão 1: Preservação Rigorosa do Aparato Metodológico (`DEC-2026-07-29-APARATO-MINIMO` & `2026-09-24`)**
-  - *Abordagem Escolhida*: Os 10 indicadores de endurecimento (`desincorporação`, `rigidez_postural`, `dessexualização`, `uniformização_facial`, `heraldicização`, `enquadramento_arquitetônico`, `apagamento_narrativo`, `monocromatização`, `serialidade`, `inscrição_estatal`) são exibidos como **inventário verbal e perfil ordinal (0–3)** em gráfico de barras/perfil individualizado, **nunca somados** em um `endurecimento_score` agregado.
-  - *Por quê*: Cumpre estritamente a decisão metodológica de 2026-09-24 registrada no Glossário e o paradigma indiciário (Morelli–Ginzburg).
-- **Decisão 2: Regra de Posição Estável na Constelação 3D**
-  - *Abordagem Escolhida*: A posição espacial `(x, y, z)` de cada nó na Constelação é calculada por uma função hash determinística sobre o `id` canônico do verbete/obra, e todos os nós compartilham escala e moldura neutras idênticas.
-  - *Por quê*: Respeita a diretriz de `constellation-method.md` ("Posição, tamanho e moldura não representam relevância científica, aprovação ou intensidade de uma relação").
-- **Decisão 3: Chamadas Gemini 100% Server-Side com Vocabulário Estável**
-  - *Abordagem Escolhida*: Remoção de qualquer fluxo legado `window.aistudio.openSelectKey` no cliente; todas as chamadas ao SDK `@google/genai` ocorrem em `server.ts` usando `gemini-3.8-flash` (com `googleSearch` opcional para cotejo bibliográfico e instrução de sistema ancorada no Glossário de Iconocracia) e `gemini-3.1-flash-lite-image` para gerar gravuras alegóricas no tooltip de seleção de texto.
-  - *Por quê*: Garante segurança da chave, aderência estrita ao vocabulário controlado da tese e ausência de alucinação de autores ou conceitos.
+- **Decisão 1: Autenticação Cliente Direta via Firebase Auth com In-Memory Token Cache**
+  - *Abordagem*: Inicialização do Firebase com `firebase-applet-config.json` já existente; o token de acesso OAuth é obtido via `signInWithPopup` com os escopos de Drive e mantido exclusivamente em variável de módulo em memória.
+  - *Por quê*: Cumpre as diretrizes de segurança da plataforma, evita redirecionamentos de servidor que falhariam em URLs efêmeras de preview (`redirect_uri_mismatch`) e garante descarte seguro do token ao fechar ou deslogar.
+  - *Alternativas Consideradas*: Fluxo server-side OAuth2 com refresh token (inviável no ambiente de preview da AI Studio devido a URLs dinâmicas).
+- **Decisão 2: Estrutura Padronizada de Pastas Automática**
+  - *Abordagem*: Na primeira exportação ou ao abrir a aba do Drive, a aplicação verifica via API se a pasta `Iconocracia - Pesquisa de Tese (Ana Vanzin)` já existe; se não existir, cria a pasta principal e suas 4 subpastas temáticas.
+  - *Por quê*: Evita dispersar arquivos soltos na raiz do Drive da usuária e organiza o material por tipo documental da tese.
+- **Decisão 3: Criação de Google Docs Nativos via MimeType `application/vnd.google-apps.document`**
+  - *Abordagem*: Utiliza upload multipart/resumable da Google Drive API v3 convertendo texto HTML/Markdown para documento nativo do Docs, facilitando a edição imediata no navegador.
 
 ---
 
-## 4. Technical Architecture & Data Strategy *(Technical Reference)*
+## 4. Technical Architecture & Data Strategy
 
 ### Architecture & Component Diagram
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                        Top Bar (3-Zone Contract)                             │
-│  [Iconocracia]  ──  [Constelação · Glossário · Regimes · Método · ABNT] ──   │
-│                                                       [Montagem Zwischenraum]│
+│  [Iconocracia] ── [Constelação · Glossário · Regimes · Método · Drive] ──   │
+│                                            [Google Auth Badge / Sign-In]     │
 └───────────────┬──────────────────────────────────────────────┬───────────────┘
                 │                                              │
                 ▼                                              ▼
 ┌───────────────────────────────────────┐    ┌─────────────────────────────────┐
-│   Viewport Principal (/acervo)        │    │  Painel Documental & Leitura    │
-│  ┌─────────────────────────────────┐  │    │  ┌───────────────────────────┐  │
-│  │ Three.js Canvas (Isolado useRef)│  │    │  │ Ficha do Verbete / Obra   │  │
-│  │ - Modo 1: Constelação (Grafo 3D)│  │◄──►│  │ - Categoria & Proveniência│  │
-│  │ - Modo 2: Palco (3-12 part PBR) │  │    │  │ - Perfil 10 Indicadores   │  │
-│  │ - Modo 3: Grade (Catálogo)      │  │    │  │ - Distinção Core/Apêndice │  │
-│  └─────────────────────────────────┘  │    │  └───────────────────────────┘  │
-│  ┌─────────────────────────────────┐  │    │  ┌───────────────────────────┐  │
-│  │ Dock Inferior Retrátil (Zen)    │  │    │  │ Montagem Zwischenraum     │  │
-│  │ [Constelação | Palco | Grade]   │  │    │  │ - Comparação de Objetos   │  │
-│  │ Filtros · Busca · Câmara Reset  │  │    │  │ - Relatório 5 Seções      │  │
-│  └─────────────────────────────────┘  │    └───────────────┬─────────────────┘
-└───────────────────────────────────────┘                    │
-                                                             ▼
+│        Google Drive Client SDK        │    │    Fichas & Montagem            │
+│  (src/services/googleDriveService.ts) │    │  - FichaDrawerModal             │
+│  - initAuth, signIn, signOut          │◄───┤  - ZwischenraumMontageModal     │
+│  - getAccessToken (In-Memory Cache)   │    │  - SelectionPeekTooltip         │
+│  - ensureThesisFolders()              │    └─────────────────────────────────┘
+│  - uploadGoogleDoc() / uploadFile()   │                      │
+│  - listThesisFiles() / deleteFile()   │                      │
+└───────────────────┬───────────────────┘                      │
+                    │                                          │
+                    ▼ Bearer <token>                           ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│           Selection Tooltip Engine (Qualquer Texto Selecionado)              │
-│  - Detecta window.getSelection() em verbetes, fichas e documento metodológico│
-│  - Renderiza Tooltip Flutuante (Desktop) / Bottom Sheet (Mobile)             │
-└───────────────────────────────────────┬──────────────────────────────────────┘
-                                        │ POST /api/iconocracy/peek
-                                        ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                     Express Backend (server.ts)                              │
-│  - POST /api/iconocracy/peek:                                                │
-│      1. gemini-3.8-flash: Nota analítica com vocabulário estável da tese     │
-│      2. gemini-3.1-flash-lite-image: Gravura alegórica contextual (1:1)      │
-│  - POST /api/iconocracy/zwischenraum:                                        │
-│      1. gemini-3.8-flash (com googleSearch): Síntese comparativa estruturada │
-│         (Problema / Argumento / Evidências / Lacunas / Próximos passos)      │
+│                  Google Drive API v3 (drive.googleapis.com)                  │
+│  - POST https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart│
+│  - GET  https://www.googleapis.com/drive/v3/files                            │
+│  - DELETE https://www.googleapis.com/drive/v3/files/{fileId}                │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Data Model & State
+### Componentes a Criar e Atualizar
 
-- **`GlossaryEntry` (Base Canônica Completa)**:
-  - Contém todos os verbetes de `Glossario_9ed50eeb.md`:
-    - **Conceitos Autorais (8)**: *Contrato Sexual Visual*, *Feminilidade de Estado*, *Contrato Racial Visual*, *Purificação Clássica*, *Endurecimento*, *Regime Iconocrático*, *Acoplamento imagem-norma*, *Pintura de alma*.
-    - **Conceitos Mobilizados (2 + Léxico Warburguiano 5)**: *Iconocracia* (Mondzain 2002), *Visiocracia* (Goodrich 2013), *Pathosformel*, *Nachleben*, *Zwischenraum*, *Denkraum*, *Mnemosyne / Bilderatlas*.
-    - **Aparato Operacional**: *Três Regimes Iconocráticos (+ Contra-Alegoria)*, *10 Indicadores de Endurecimento (0–3)*, *Critérios de Inclusão no Corpus*, *Níveis de Panofsky (I, II, III)*, *Iconclass (`44`, `11M44`, e alerta crítico sobre `48C51`)*, *Colonialidade do ver*, *Ausência alegórica*, *Suporte*.
-    - **Alegorias Nacionais (7 matrizes)**: França (*Marianne / La République, La Liberté, La Justice*), Reino Unido (*Britannia, Justice, Hibernia, Scotia*), Alemanha (*Germania, Justitia, Minerva* — Niederwald 1883), EUA (*Columbia, Lady Liberty, Lady Justice, America*), Bélgica (*La Belgique*), Brasil (*A República, A Justiça* — 1889), e *Justitia / Lady Justice* transnacional.
-    - **Interlocutores Teóricos (12)**: Kantorowicz (1957), Legendre (1974/1994), Hespanha (2005), Pateman (1988), Mondzain (2002), Carson (1990), Latour (1991), Haraway (1985), Descola (2021), Goodrich (2013), Agulhon (1979/1989), Resnik & Curtis (2011), mais Benjamin (1928) e Weigel (1996/2005) do documento de Constelação.
-- **`CorpusExemplar` (Objetos do Campo `/acervo`)**:
-  - Casos documentados do *corpus core* (1800–2000) e itens marcados como *comparador/apêndice*, com ID estável, suporte material, datação, país, regime iconocrático, perfil nos 10 indicadores ordinais (0–3), códigos Iconclass (`44`, `11M44`), proveniência institucional e links para o *Companion*, *Atlas* e *GitHub Corpus*.
-
-### Interactive Component & State Mapping
-
-- **Sincronização URL & Foco (`constellation-method.md`)**:
-  - Suporte a parâmetros de consulta (`?mode=constelacao|palco|grade&item=<id>`) para que links diretos abram o modo ou a ficha correspondente e, ao fechar a ficha, o foco retorne ao nó no campo 3D.
-- **Modelos Procedurais 3D (`THREE.Group` de 3–12 partes no Modo Palco & Constelação)**:
-  - Cada nó/artefato no Three.js é construído proceduralmente com geometrias compostas (`LatheGeometry`, `ExtrudeGeometry`, `TubeGeometry`, `CylinderGeometry`) e materiais PBR (`MeshStandardMaterial` / `MeshPhysicalMaterial` com `RoomEnvironment` PMREM, luz-chave direcional quente e preenchimento `HemisphereLight` frio), representando suportes jurídicos (moeda cunhada, selo emoldurado, balança e espada de *Justitia*, busto republicano com barrete frígio, frontão forense, prancha *Mnemosyne*).
-- **Tooltip de Seleção de Texto (`Peek-a-Concept`)**:
-  - Ao selecionar qualquer texto na interface, caso o termo corresponda diretamente a um verbete do Glossário, exibe imediatamente os metadados canônicos enquanto busca em `/api/iconocracy/peek` a síntese contextualizada e a gravura alegórica gerada por IA.
+1. **`src/services/googleDriveService.ts`**:
+   - Inicializa Firebase com `firebase-applet-config.json`.
+   - Gerencia autenticação (`initAuth`, `googleSignIn`, `googleSignOut`, `getAccessToken`).
+   - Implementa chamadas da API do Google Drive v3:
+     - `ensureThesisFolders()`: Localiza ou cria a pasta raiz e subpastas.
+     - `exportMontageToDrive()`: Cria Google Doc ou Markdown com o parecer da montagem.
+     - `exportFichaToDrive()`: Salva ficha catalográfica com os 10 indicadores de endurecimento.
+     - `exportPeekNoteToDrive()`: Salva nota iconológica com imagem em anexo.
+     - `listThesisFiles()`: Lista arquivos salvos na pasta da tese.
+     - `deleteDriveFile()`: Exclui arquivo após confirmação.
+2. **`src/components/DriveIntegrationPanel.tsx`**:
+   - Interface visual da aba/modal do Google Drive, contendo:
+     - Cartão de status da conexão e usuário autenticado.
+     - Resumo de pastas da tese e atalho para abrir a pasta no Google Drive.
+     - Lista interativa de documentos sincronizados com opções de visualização e abertura no Docs.
+     - Diálogo de confirmação para exclusão de arquivos.
+3. **Atualizações em `src/App.tsx`**:
+   - Adição da aba `Google Drive` na barra de navegação e menu móvel.
+   - Botão de status/login do Google no Top Bar.
+4. **Atualizações em `src/components/ZwischenraumMontageModal.tsx`**:
+   - Botão *"Exportar para o Google Drive"* após a geração do parecer em 5 seções.
+5. **Atualizações em `src/components/FichaDrawerModal.tsx`**:
+   - Botão *"Salvar Ficha no Google Drive"*.
+6. **Atualizações em `src/components/SelectionPeekTooltip.tsx`**:
+   - Botão de salvamento rápido da nota no Google Drive.
+7. **Dependências**:
+   - Instalação do pacote `firebase` no `package.json`.
